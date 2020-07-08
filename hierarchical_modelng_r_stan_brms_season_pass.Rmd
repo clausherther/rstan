@@ -18,11 +18,8 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, error = FALSE, warning = FAL
 
 ```{r libraries, echo=FALSE}
 library(tidyverse)
-library(tidybayes)
 library(broom)
 library(janitor)
-library(lubridate)
-library(rstan)
 library(brms)
 library(bayesplot)
 library(hrbrthemes)
@@ -219,7 +216,7 @@ mcmc_trace(base_line_promo_model, regex_pars = c("b_"), facet_args = list(nrow =
 We note that our chains show convergence and are well-mixed, so we move on to taking a look at the estimates:
 
 ```{r}
-summary(base_line_promo_model)
+tidy(base_line_promo_model)
 ```
 
 ```{r plot_base_line_promo_model_areas}
