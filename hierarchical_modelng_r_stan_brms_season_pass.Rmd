@@ -20,12 +20,17 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, error = FALSE, warning = FAL
 
 ```{r libraries, echo=FALSE}
 library(tidyverse)
-library(tidybayes)
 library(broom)
+library(broom.mixed)
 library(janitor)
 library(brms)
+library(tidybayes)
 library(bayesplot)
 library(hrbrthemes)
+
+# library(cmdstanr)
+# 
+# install_cmdstan(release_url = "https://github.com/stan-dev/cmdstan/releases/download/v2.24.0-rc1/cmdstan-2.24.0-rc1.tar.gz", cores = 4)
 
 # Setting the plotting themes to use the ipsum_rc theme from HBR
 theme_set(hrbrthemes::theme_ipsum_rc())
@@ -199,7 +204,7 @@ So, if we wanted to measure the overall effectiveness of our bundle offer, we'd 
 
 We'll set reasonably high value for the number of sampler iterations and set a seed for more repeatable sampling results:
 
-``` r
+``` {r}
 # iterations to use for MCMC sampling
 iter <- 10000
 ```
@@ -231,7 +236,9 @@ base_line_promo_model <- brm(bought_pass | trials(n) ~ 1 + promo,
                                        prior(normal(0, 1), class = b)),
                              data = season_pass_data_grp,
                              family = binomial(link = "logit"),
-                             iter = iter
+                             iter = iter,
+                             cores = 4,
+                             backend="cmdstan"
                              )
 ```
 
@@ -362,7 +369,9 @@ promo_channel_model_interactions <- brm(bought_pass | trials(n) ~ promo*channel,
                                                   prior(normal(0, 1), class = b)),
                                         data = season_pass_data_grp,
                                         family = binomial(link = "logit"),
-                                        iter = iter)
+                                        iter = iter,
+                                        backend="cmdstan",
+                                        cores = 4)
 ```
 
 Again, our model converged well and we observe well-mixed chains in the traceplot:
@@ -416,13 +425,15 @@ In our case, it would make the most sense to model this with both varying interc
 Luckily, it's a fairly low-code effort to add grouping levels to our model. We will model both a varying intercept (`1`) and varying slope (`promo`) by `channel`, removing the standard population level intercept (`0`) and slope. (The `||` tells `brms` not to bother to compute correlations.)
 
 
-```{r promo_channel_model_hierarchical, results = "hide", cache = TRUE}
+```{r promo_channel_model_hierarchical, results = "hide"}
 promo_channel_model_hierarchical <- brm(bought_pass | trials(n) ~ 0 + (1 + promo || channel),
                                         prior = c(prior(normal(0, 1), class = sd)),
                                         data = season_pass_data_grp,
                                         control = list(adapt_delta = 0.95),
                                         family = binomial(link = "logit"),
-                                        iter = iter
+                                        iter = iter,
+                                        cores = 4,
+                                        backend="cmdstan",
                                         )
 
 ```
@@ -435,7 +446,7 @@ mcmc_trace(promo_channel_model_hierarchical, regex_pars = c("r_"), facet_args = 
 This time we'll use the `broom` package to `tidy` up the outputs of our model so that we can inspect the varying parameters of our model more easily:
 
 ```{r}
-tidy(promo_channel_model_hierarchical, prob = 0.95)
+tidy(promo_channel_model_hierarchical, prob = 0.95, effects = c("ran_vals"))
 ```
 Another benefit of multi-level models is that each level is explicitly modeled, unlike traditional models where we typically model n-1 coefficients and are always left to interpret coefficients against some un-modeled baseline.
 
